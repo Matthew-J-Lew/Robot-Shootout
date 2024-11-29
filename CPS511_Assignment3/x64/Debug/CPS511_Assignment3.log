@@ -1,9 +1,3 @@
 ﻿  main.cpp
-C:\Users\Matthew\Documents\VisualStudioProjects\CPS511_Assignment3\CPS511_Assignment3\main.cpp(116,30): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-C:\Users\Matthew\Documents\VisualStudioProjects\CPS511_Assignment3\CPS511_Assignment3\main.cpp(121,31): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-C:\Users\Matthew\Documents\VisualStudioProjects\CPS511_Assignment3\CPS511_Assignment3\main.cpp(144,28): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-C:\Users\Matthew\Documents\VisualStudioProjects\CPS511_Assignment3\CPS511_Assignment3\main.cpp(148,29): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-C:\Users\Matthew\Documents\VisualStudioProjects\CPS511_Assignment3\CPS511_Assignment3\main.cpp(160,29): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-C:\Users\Matthew\Documents\VisualStudioProjects\CPS511_Assignment3\CPS511_Assignment3\main.cpp(165,30): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
   CPS511_Assignment3.vcxproj -> C:\Users\Matthew\Documents\VisualStudioProjects\CPS511_Assignment3\x64\Debug\CPS511_Assignment3.exe
           1 file(s) copied.
