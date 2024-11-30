@@ -166,6 +166,9 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Robot.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="ground_texture.bmp" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
