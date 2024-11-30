@@ -9,6 +9,7 @@
 #include <vector>
 #include <math.h>
 #include <windows.h>
+#include "surfaceModeller.h"
 
 const double M_PI = 3.14159265358979323846;
 
@@ -35,6 +36,19 @@ int currentButton;
 //Creating variables for texture mapping functionality
 GLuint groundTexture;
 
+//Creating necessary variables and function headers to import and draw cannon mesh
+Vector3D* cannonVertexArray;
+GLuint* cannonIndexArray;
+Vector3D* cannonNormalArray;
+
+GLuint cannonNumVertices;
+GLuint cannonNumQuads;
+
+GLuint cannonIndex = 0;
+Vector3D cannonVertex;
+Vector3D cannonNormal;
+GLuint cannonVertexIndex[4];
+FILE* cannonFile;
 
 void initializeWindow() {
 
@@ -82,6 +96,40 @@ void drawGround() {
     glDisable(GL_TEXTURE_2D);
 }
 
+void drawDefensiveCannon(){
+
+
+    // Set up lighting/shading and material properties for surface of revolution
+    GLfloat quadMat_ambient[] = { 0.0, 0.0, 0.0, 1.0 };
+    GLfloat quadMat_specular[] = { 0.45, 0.55, 0.45, 1.0 };
+    GLfloat quadMat_diffuse[] = { 0.1, 0.35, 0.1, 1.0 };
+    GLfloat quadMat_shininess[] = { 10.0 };
+    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, quadMat_ambient);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, quadMat_specular);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, quadMat_diffuse);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, quadMat_shininess);
+
+
+
+    //printf("drawDefensiveCannon\n");
+    glPushMatrix();
+    //Loop through each quad
+    for (int i = 0; i < cannonNumQuads; i++) {
+
+        glBegin(GL_QUADS);
+        //Get the index of the vertex and normal to draw based on indexArray[i]
+        cannonIndex = cannonIndexArray[i];
+        cannonVertex = cannonVertexArray[cannonIndex];
+        cannonNormal = cannonNormalArray[cannonIndex];
+        //Draw the normal and vertex 
+        glNormal3f(cannonNormal.x, cannonNormal.y, cannonNormal.z);
+        glVertex3f(cannonVertex.x, cannonVertex.y, cannonVertex.z);
+
+    }
+    glEnd();
+    glPopMatrix();
+
+}
 
 void display() {
 
@@ -89,6 +137,7 @@ void display() {
     glLoadIdentity();
     updateCamera();
     drawGround();
+    drawDefensiveCannon();
     glutSwapBuffers();
 
 }
@@ -209,8 +258,77 @@ GLuint loadGroundBMP(const char* filePath) {
 //    
 //}
 
+//Function to import the .obj mesh file and bind the extracted data to our arrays, note we use the variables vertex, and normal in this function as well as drawQuads
+void importMesh() {
+
+    //Open file
+    errno_t err = fopen_s(&cannonFile, "meshes/cannon_mesh_export.obj", "r");
+    if (err != 0 || !cannonFile) {
+        fprintf(stderr, "Error reading cannon file\n");
+        return;
+    }
+
+    //Temporary lists to extract the data with
+    std::vector<Vector3D> vertices;
+    std::vector<Vector3D> normals;
+    std::vector<GLuint> indices;
+
+    //line header is used to scan the first characters of the line to tell if its a vertex, normal, or index
+    char lineHeader[128];
+    //While theres still lines in the file, scan each line and bind to the appropriate array
+    while (fscanf_s(cannonFile, "%s", lineHeader, (unsigned)_countof(lineHeader)) != EOF) {
+
+        //Case where line starts with v, it is a vertex, so we bind it to our temporary vertex list
+        if (strcmp(lineHeader, "v") == 0) {
+
+            fscanf_s(cannonFile, "%lf %lf %lf\n", &cannonVertex.x, &cannonVertex.y, &cannonVertex.z);
+            vertices.push_back(cannonVertex);
+
+        }
+
+        //Case where line starts with vn, it is a normal, so we bind it to our temporary normal list
+        else if (strcmp(lineHeader, "vn") == 0) {
+
+            fscanf_s(cannonFile, "%lf %lf %lf\n", &cannonNormal.x, &cannonNormal.y, &cannonNormal.z);
+            normals.push_back(cannonNormal);
+
+        }
+        //Case where line starts with an f, it is an index, so we bind it to our temporary indice list
+        else if (strcmp(lineHeader, "f") == 0) {
+
+            //We have another loop as there are 4 vertices for each quad
+            for (int i = 0; i < 4; i++) {
+                fscanf_s(cannonFile, "%u//%u", &cannonVertexIndex[i], &cannonVertexIndex[i]);
+                cannonVertexIndex[i]--; // Convert from 1-based OBJ index to 0-based C/C++ index
+            }
+            indices.insert(indices.end(), cannonVertexIndex, cannonVertexIndex + 4);
+
+        }
+    }
+    fclose(cannonFile);
+
+    //Transfer data from vectors to arrays
+
+    //cannonNumVertices and cannonNumQuads are useful for drawing later in drawQuads
+    cannonNumVertices = (int)vertices.size();
+    cannonNumQuads = (int)(indices.size() / 4);
+
+    //creates memory for arrays and then copies the data from our temporary lists into our arrays
+    cannonVertexArray = (Vector3D*)malloc(cannonNumVertices * sizeof(Vector3D));
+    memcpy(cannonVertexArray, vertices.data(), cannonNumVertices * sizeof(Vector3D));
+
+    cannonNormalArray = (Vector3D*)malloc(cannonNumVertices * sizeof(Vector3D));
+    memcpy(cannonNormalArray, normals.data(), cannonNumVertices * sizeof(Vector3D));
+
+    cannonIndexArray = (GLuint*)malloc(indices.size() * sizeof(GLuint));
+    memcpy(cannonIndexArray, indices.data(), indices.size() * sizeof(GLuint));
+
+    printf("Mesh imported from %s successfully.\n", "mesh_export.obj");
+}
+
 int main(int argc, char** argv) {
     //Initialize GLUT
+    importMesh();
     glutInit(&argc, argv);
 
     //Creating the window
@@ -223,7 +341,7 @@ int main(int argc, char** argv) {
     }
 
     //Loading textures
-    groundTexture = loadGroundBMP("textures/ground_texture.bmp");
+    groundTexture = loadGroundBMP("textures/snow.bmp");
 
 
     //Creating the window
