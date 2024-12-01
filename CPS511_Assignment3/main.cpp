@@ -19,12 +19,16 @@ GLint viewportWidth = windowWidth;
 GLint viewportHeight = windowHeight;
 GLdouble aspect = (GLdouble)windowWidth / windowHeight;
 
-//Creating variables and function headers for camera control functionality
+//Creating variables and function headers for camera control functionality and cannon rotation funcionality
+GLdouble fov = 90;
 GLdouble cameraAzimuth = 0;
-GLdouble cameraElevation = 3;
+GLdouble cameraElevation = 0;
 GLdouble zoomAmount = 0.25;
 GLdouble azimuthRad;
 GLdouble elevationRad;
+GLdouble lookAtX;
+GLdouble lookAtY;
+GLdouble lookAtZ;
 void updateCamera();
 GLdouble eyeX = 0.0, eyeY = 3.0, eyeZ = 10.0;
 GLdouble radius = eyeZ;
@@ -32,6 +36,7 @@ GLdouble zNear = 0.1, zFar = 40.0;
 int lastMouseX;
 int lastMouseY;
 int currentButton;
+GLdouble cannonRotationAngle = 0.0;
 
 //Creating variables for texture mapping functionality
 GLuint groundTexture;
@@ -50,29 +55,43 @@ Vector3D cannonNormal;
 GLuint cannonVertexIndex[4];
 FILE* cannonFile;
 
+//Creating necessary variables and function headers for projectiles and their animations
+struct Projectile {
+    //Positions
+    GLdouble x, y, z;      
+    //Velocity
+    GLdouble vx, vy, vz;  
+};
+GLdouble deltaTime = 0.016;
+std::vector<Projectile> projectiles;
+double cannonLength;
+double projectileSpeed = 0.5;
+
+
 void initializeWindow() {
 
     glViewport(0, 0, viewportWidth, viewportHeight);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(45.0, aspect, zNear, zFar); 
+    gluPerspective(fov, aspect, zNear, zFar); 
     glMatrixMode(GL_MODELVIEW);
     glClearColor(0.53f, 0.81f, 0.92f, 1.0f); 
+    gluLookAt(eyeX, eyeY, eyeZ, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 
 }
 
-void updateCamera() {
+void updateCamera(){
 
-    azimuthRad = cameraAzimuth * M_PI / 180.0;    
+    azimuthRad = cameraAzimuth * M_PI / 180.0;
     elevationRad = cameraElevation * M_PI / 180.0;
 
-    eyeX = 10.0 * cos(elevationRad) * sin(azimuthRad);
-    eyeY = 10.0 * sin(elevationRad);
-    eyeZ = 10.0 * cos(elevationRad) * cos(azimuthRad);
+    // Calculate the direction the camera is looking
+    lookAtX = cos(elevationRad) * sin(azimuthRad);
+    lookAtY = sin(elevationRad);
+    lookAtZ = cos(elevationRad) * cos(azimuthRad);
 
     glLoadIdentity();
-    gluLookAt(eyeX, eyeY, eyeZ, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
-
+    gluLookAt(eyeX, eyeY, eyeZ, eyeX + lookAtX, eyeY + lookAtY, eyeZ + lookAtZ, 0.0, 1.0, 0.0);
 
 }
 
@@ -97,38 +116,71 @@ void drawGround() {
 }
 
 void drawDefensiveCannon(){
+    
+    //WE NEED A BETTER WAY TO DO THE TEXTURING
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, groundTexture);
 
-
-    // Set up lighting/shading and material properties for surface of revolution
-    GLfloat quadMat_ambient[] = { 0.0, 0.0, 0.0, 1.0 };
-    GLfloat quadMat_specular[] = { 0.45, 0.55, 0.45, 1.0 };
-    GLfloat quadMat_diffuse[] = { 0.1, 0.35, 0.1, 1.0 };
-    GLfloat quadMat_shininess[] = { 10.0 };
-    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, quadMat_ambient);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, quadMat_specular);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, quadMat_diffuse);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, quadMat_shininess);
-
-
-
-    //printf("drawDefensiveCannon\n");
     glPushMatrix();
+
+    //Moving cannon into place and aligning it with camera
+    glTranslatef(0, 1.5, 10);
+    glRotatef(-90.0, 0.0, 1.0, 0.0);
+    glRotatef(-90.0, 0.0, 0.0, 1.0);
+
+    //Updating cannon to look where our camera is looking
+    //Horizontal Movement
+    glRotatef(-cameraAzimuth, 1.0, 0.0, 0.0);
+    //Vertical Movement
+    glRotatef(cameraElevation, 0.0, 0.0, 1.0); 
+
+    glBegin(GL_QUADS);
     //Loop through each quad
     for (int i = 0; i < cannonNumQuads; i++) {
 
-        glBegin(GL_QUADS);
         //Get the index of the vertex and normal to draw based on indexArray[i]
         cannonIndex = cannonIndexArray[i];
         cannonVertex = cannonVertexArray[cannonIndex];
         cannonNormal = cannonNormalArray[cannonIndex];
-        //Draw the normal and vertex 
+        
+        glTexCoord2f(0.0f, 0.0f);
         glNormal3f(cannonNormal.x, cannonNormal.y, cannonNormal.z);
         glVertex3f(cannonVertex.x, cannonVertex.y, cannonVertex.z);
-
     }
     glEnd();
     glPopMatrix();
+}
 
+void drawProjectiles() {
+
+
+    GLUquadric* quadric = gluNewQuadric();
+    glPushMatrix();
+    for (const auto& projectile : projectiles) {
+        glPushMatrix();
+        glTranslatef(projectile.x, projectile.y, projectile.z);
+        glColor3f(0.0f, 1.0f, 0.0f);
+        //glutSolidSphere(0.01, 16, 16); // Example: Draw as a small sphere
+        gluSphere(quadric, 0.01, 16, 16);
+        glPopMatrix();
+    }
+    glPopMatrix();
+
+    glColor3f(1.0f, 1.0f, 1.0f);
+    gluDeleteQuadric(quadric);
+}
+
+void updateProjectiles(GLdouble deltaTime) {
+    for (auto& projectile : projectiles) {
+        projectile.x += projectile.vx * deltaTime;
+        projectile.y += projectile.vy * deltaTime;
+        projectile.z += projectile.vz * deltaTime;
+    }
+    // Optionally, remove projectiles that are out of bounds
+    projectiles.erase(
+        std::remove_if(projectiles.begin(), projectiles.end(),
+            [](const Projectile& p) { return p.y < -1.0 || p.x > 100 || p.z > 100; }),
+        projectiles.end());
 }
 
 void display() {
@@ -138,11 +190,13 @@ void display() {
     updateCamera();
     drawGround();
     drawDefensiveCannon();
+
+    updateProjectiles(deltaTime);
+    drawProjectiles();
+
     glutSwapBuffers();
 
 }
-
-
 
 //Using this function for our camera movement
 void mouseMotionHandler(int x, int y){
@@ -152,12 +206,11 @@ void mouseMotionHandler(int x, int y){
 
     if (currentButton == GLUT_LEFT_BUTTON) {
         
-        cameraAzimuth += dx * 0.25;  
+        cameraAzimuth -= dx * 0.25;  
         cameraElevation -= dy * 0.25;
-
         // Clamp elevation to avoid flipping the view upside-down
-        if (cameraElevation > 89.0)
-            cameraElevation = 89.0;
+        if (cameraElevation > 52.0)
+            cameraElevation = 52.0;
         if (cameraElevation < -5.0)
             cameraElevation = -5.0;
 
@@ -196,6 +249,44 @@ void mouseButtonHandler(int button, int state, int x, int y) {
     }
 
 }
+
+void keyboardHandler(unsigned char key, int x, int y) {
+
+    switch (key) {
+
+    case 32: {
+      
+        Projectile newProjectile;
+
+        //Calculate the position of the cannon's tip
+        cannonLength = 0.225; 
+        azimuthRad = cameraAzimuth * M_PI / 180.0;
+        elevationRad = cameraElevation * M_PI / 180.0;
+
+        //Set where the projectile will spawn
+        newProjectile.x = eyeX + cannonLength * cos(elevationRad) * sin(azimuthRad);
+        newProjectile.y = eyeY + cannonLength * sin(elevationRad) - 0.075;
+        newProjectile.z = eyeZ + cannonLength * cos(elevationRad) * cos(azimuthRad);
+
+        //Set the velocity of the projectile
+        projectileSpeed = 0.5; 
+        newProjectile.vx = projectileSpeed * cos(elevationRad) * sin(azimuthRad);
+        newProjectile.vy = projectileSpeed * sin(elevationRad);
+        newProjectile.vz = projectileSpeed * cos(elevationRad) * cos(azimuthRad);
+
+        //Add to the list of projectiles
+        projectiles.push_back(newProjectile);
+        break;
+
+    }
+    case 'r':
+        printf("Restart");
+        break;
+    default:
+        break;
+    }
+}
+
 
 GLuint loadGroundBMP(const char* filePath) {
     
@@ -350,6 +441,7 @@ int main(int argc, char** argv) {
 
     glutDisplayFunc(display);
     glutIdleFunc(display);
+    glutKeyboardFunc(keyboardHandler);
     glutMouseFunc(mouseButtonHandler);
     glutMotionFunc(mouseMotionHandler);
 
