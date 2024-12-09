@@ -10,6 +10,7 @@
 #include <math.h>
 #include <windows.h>
 #include "surfaceModeller.h"
+#include "Robot.h"
 
 const double M_PI = 3.14159265358979323846;
 
@@ -40,6 +41,7 @@ GLdouble cannonRotationAngle = 0.0;
 
 //Creating variables for texture mapping functionality
 GLuint groundTexture;
+GLuint cannonTexture;
 
 //Creating necessary variables and function headers to import and draw cannon mesh
 Vector3D* cannonVertexArray;
@@ -66,6 +68,22 @@ GLdouble deltaTime = 0.016;
 std::vector<Projectile> projectiles;
 double cannonLength;
 double projectileSpeed = 0.5;
+
+struct Robot {
+    GLdouble x, y, z; // Position of the robot
+    GLdouble speed;   // Movement speed toward the cannon
+    GLdouble rotationAngle;
+    float stepIncrement; // Step movement value
+
+    // Joint angles for walking animation
+    float leftHipAngle = 0.0f;
+    float rightHipAngle = 0.0f;
+    float leftKneeAngle = 0.0f;
+    float rightKneeAngle = 0.0f;
+};
+std::vector<Robot> robots; // Collection of robots
+
+const float despawnThreshold = 5.0f;
 
 
 void initializeWindow() {
@@ -95,6 +113,33 @@ void updateCamera(){
 
 }
 
+
+void updateRobots(GLdouble deltaTime) {
+    // Iterate through robots and update their positions
+    auto it = robots.begin();
+    while (it != robots.end()) {
+        GLdouble dx = 0.0 - it->x; // Cannon at origin in X
+        GLdouble dz = 10.0 - it->z; // Cannon at Z = 10
+        GLdouble length = sqrt(dx * dx + dz * dz);
+
+        if (length > despawnThreshold) {
+            // Normalize direction and move robot
+            if (length > 0) {
+                dx /= length;
+                dz /= length;
+                it->x += it->speed * dx * deltaTime;
+                it->z += it->speed * dz * deltaTime;
+            }
+            ++it; // Continue to the next robot
+        }
+        else {
+            // Robot has reached the cannon, despawn it
+            it = robots.erase(it);
+        }
+    }
+}
+
+
 void drawGround() {
     
 
@@ -102,6 +147,7 @@ void drawGround() {
     glBindTexture(GL_TEXTURE_2D, groundTexture);
 
     glPushMatrix();
+    glColor3f(1.0f, 1.0f, 1.0f);
     glBegin(GL_QUADS);
 
     glTexCoord2f(0.0f, 0.0f); glVertex3f(-100.0f, -1.0f, -100.0f);
@@ -117,9 +163,8 @@ void drawGround() {
 
 void drawDefensiveCannon(){
     
-    //WE NEED A BETTER WAY TO DO THE TEXTURING
     glEnable(GL_TEXTURE_2D);
-    glBindTexture(GL_TEXTURE_2D, groundTexture);
+    glBindTexture(GL_TEXTURE_2D, cannonTexture);
 
     glPushMatrix();
 
@@ -133,7 +178,7 @@ void drawDefensiveCannon(){
     glRotatef(-cameraAzimuth, 1.0, 0.0, 0.0);
     //Vertical Movement
     glRotatef(cameraElevation, 0.0, 0.0, 1.0); 
-
+    glColor3f(1.0f, 1.0f, 1.0f);
     glBegin(GL_QUADS);
     //Loop through each quad
     for (int i = 0; i < cannonNumQuads; i++) {
@@ -143,12 +188,35 @@ void drawDefensiveCannon(){
         cannonVertex = cannonVertexArray[cannonIndex];
         cannonNormal = cannonNormalArray[cannonIndex];
         
-        glTexCoord2f(0.0f, 0.0f);
+        glTexCoord2f(i % 2, (i / 2) % 2); // Adjust these values based on the cannon geometry
         glNormal3f(cannonNormal.x, cannonNormal.y, cannonNormal.z);
         glVertex3f(cannonVertex.x, cannonVertex.y, cannonVertex.z);
     }
     glEnd();
     glPopMatrix();
+}
+
+void drawRobots() {
+    for (const auto& robot : robots) {
+        glPushMatrix();
+        float adjustedY = robot.y + 3.0f;
+        glTranslatef(robot.x, adjustedY, robot.z);
+
+        // Rotate the robot to face the cannon
+        glRotatef(robot.rotationAngle, 0.0, 1.0, 0.0);
+
+        glScalef(2.0f, 2.0f, 2.0f);
+
+        // Draw robot body parts
+        drawBody();
+        drawHead();
+        drawArm(true);
+        drawArm(false);
+        drawLeg(true);
+        drawLeg(false);
+
+        glPopMatrix();
+    }
 }
 
 void drawProjectiles() {
@@ -171,12 +239,50 @@ void drawProjectiles() {
 }
 
 void updateProjectiles(GLdouble deltaTime) {
+    // Move projectiles
     for (auto& projectile : projectiles) {
         projectile.x += projectile.vx * deltaTime;
         projectile.y += projectile.vy * deltaTime;
         projectile.z += projectile.vz * deltaTime;
     }
-    // Optionally, remove projectiles that are out of bounds
+
+    // Check for collisions between projectiles and robots
+    auto projectileIt = projectiles.begin();
+    while (projectileIt != projectiles.end()) {
+        bool collisionDetected = false;
+
+        auto robotIt = robots.begin();
+        while (robotIt != robots.end()) {
+            // Calculate distance
+            GLdouble dx = projectileIt->x - robotIt->x;
+            GLdouble dy = projectileIt->y - (robotIt->y + 3.0f); // Adjust for Y offset
+            GLdouble dz = projectileIt->z - robotIt->z;
+
+            GLdouble distanceSquared = dx * dx + dy * dy + dz * dz;
+
+            // Adjust collision radius based on scaling
+            const GLdouble collisionRadius = 1.0; // Base size
+            const GLdouble scaledRadius = collisionRadius * 8.0; // Scaled size
+            if (distanceSquared < scaledRadius * scaledRadius) {
+                // Remove the robot and projectile
+                robotIt = robots.erase(robotIt);
+                collisionDetected = true;
+                break;
+            }
+            else {
+                ++robotIt;
+            }
+        }
+
+        if (collisionDetected) {
+            projectileIt = projectiles.erase(projectileIt);
+        }
+        else {
+            ++projectileIt;
+        }
+    }
+
+    // Optionally remove out-of-bounds projectiles
     projectiles.erase(
         std::remove_if(projectiles.begin(), projectiles.end(),
             [](const Projectile& p) { return p.y < -1.0 || p.x > 100 || p.z > 100; }),
@@ -184,18 +290,20 @@ void updateProjectiles(GLdouble deltaTime) {
 }
 
 void display() {
-
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glLoadIdentity();
     updateCamera();
+
     drawGround();
     drawDefensiveCannon();
+    
+    updateRobots(deltaTime); // Update robots
+    drawRobots();            // Draw robots
 
     updateProjectiles(deltaTime);
     drawProjectiles();
 
     glutSwapBuffers();
-
 }
 
 //Using this function for our camera movement
@@ -280,11 +388,90 @@ void keyboardHandler(unsigned char key, int x, int y) {
 
     }
     case 'r':
+        robots.clear();
         printf("Restart");
         break;
+    case 's': {
+        if (robots.empty()) { // Only spawn if no robots exist
+            int maxRobotsToSpawn = 5;
+
+            for (int i = 0; i < maxRobotsToSpawn; ++i) {
+                Robot newRobot;
+                newRobot.x = static_cast<GLdouble>(rand() % 200 - 100); // Random x between -100 and 100
+                newRobot.y = 0.0;
+                newRobot.z = static_cast<GLdouble>(rand() % 200 - 100); // Random z between -100 and 100
+                newRobot.speed = 3.0; // Adjust speed as needed
+                newRobot.stepIncrement = 1.0f;
+                newRobot.leftHipAngle = 0.0f;
+                newRobot.rightHipAngle = 0.0f;
+                newRobot.leftKneeAngle = 0.0f;
+                newRobot.rightKneeAngle = 0.0f;
+
+                // Calculate the rotation angle to face the cannon
+                GLdouble dx = 0.0 - newRobot.x;
+                GLdouble dz = 10.0 - newRobot.z; // Cannon position at z = 10
+                newRobot.rotationAngle = atan2(dx, dz) * 180.0 / M_PI;
+
+                robots.push_back(newRobot);
+            }
+        }
+        break;
+    }
     default:
         break;
     }
+}
+
+
+GLuint loadCannonTexture(const char* filePath) {
+    // Similar to loadGroundBMP, but with the texture for the cannon.
+    FILE* file = fopen(filePath, "rb");
+    if (!file) {
+        printf("Error: Unable to open texture file %s\n", filePath);
+        return 0;
+    }
+
+    // Create a variable to hold the header
+    char header[54];
+    fread(header, sizeof(char), 54, file);
+
+    // Extract image information from the header
+    int dataPos = *(int*)&header[0x0A];
+    int imageSize = *(int*)&header[0x22];
+    int width = *(int*)&header[0x12];
+    int height = *(int*)&header[0x16];
+
+    if (imageSize == 0) {
+        imageSize = width * height * 3;
+    }
+    if (dataPos == 0) dataPos = 54;
+
+    // Read image data
+    char* data = (char*)malloc(imageSize);
+    fread(data, sizeof(char), imageSize, file);
+
+    // Swap blue with red (BMP format specific)
+    for (int i = 0; i < imageSize; i += 3) {
+        char temp = data[i];
+        data[i] = data[i + 2];
+        data[i + 2] = temp;
+    }
+    fclose(file);
+
+    // Generate OpenGL texture
+    GLuint textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    free(data);
+
+    // Set texture parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // Repeat horizontally
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT); // Repeat vertically
+
+    return textureID;
 }
 
 
@@ -417,6 +604,40 @@ void importMesh() {
     printf("Mesh imported from %s successfully.\n", "mesh_export.obj");
 }
 
+
+void animation(int value) {
+    // Update robot positions and animations
+    for (auto& robot : robots) {
+        // Stepping animation logic
+        robot.leftHipAngle -= robot.stepIncrement;
+        robot.leftKneeAngle += robot.stepIncrement;
+        robot.rightHipAngle += robot.stepIncrement;
+        robot.rightKneeAngle += robot.stepIncrement;
+
+        // Reverse direction of stepping animation when limits are reached
+        if (robot.leftHipAngle >= 20.0f || robot.leftHipAngle <= -20.0f) {
+            robot.stepIncrement = -robot.stepIncrement;
+        }
+
+        // Movement logic toward the cannon
+        GLdouble dx = 0.0 - robot.x; // Cannon assumed at origin in X
+        GLdouble dz = 10.0 - robot.z; // Cannon at Z = 10
+        GLdouble length = sqrt(dx * dx + dz * dz);
+
+        if (length > 0) {
+            dx /= length;
+            dz /= length;
+            robot.x += robot.speed * dx * deltaTime;
+            robot.z += robot.speed * dz * deltaTime;
+        }
+    }
+
+    glutPostRedisplay();
+    glutTimerFunc(16, animation, 0); // Continue at ~60 FPS
+}
+
+
+
 int main(int argc, char** argv) {
     //Initialize GLUT
     importMesh();
@@ -433,6 +654,7 @@ int main(int argc, char** argv) {
 
     //Loading textures
     groundTexture = loadGroundBMP("textures/snow.bmp");
+    cannonTexture = loadGroundBMP("textures/cannon.bmp");
 
 
     //Creating the window
@@ -444,6 +666,8 @@ int main(int argc, char** argv) {
     glutKeyboardFunc(keyboardHandler);
     glutMouseFunc(mouseButtonHandler);
     glutMotionFunc(mouseMotionHandler);
+
+    glutTimerFunc(16, animation, 0);
 
     glutMainLoop();
 

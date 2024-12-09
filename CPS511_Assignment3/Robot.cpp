@@ -5,6 +5,7 @@
 #include <GL/freeglut.h>
 #include <utility>
 #include <vector>
+#include "Robot.h"
 
 
 // Variables for joint angles
@@ -131,16 +132,11 @@ void drawLeg(bool isLeft) {
     // Upper leg with hip rotation and constraints to mimic real leg movement
     if (isLeft) {
         glTranslatef(-0.22f, -0.5f, 0.0f);
-    }
-    else {
-        glTranslatef(0.22f, -0.5f, 0.0f);
-    }
-
-    if (isLeft) {
         leftHipAngle = fmax(-90.0f, fmin(leftHipAngle, 20.0f));
         glRotatef(leftHipAngle, 1.0f, 0.0f, 0.0f);
     }
     else {
+        glTranslatef(0.22f, -0.5f, 0.0f);
         rightHipAngle = fmax(-90.0f, fmin(rightHipAngle, 20.0f));
         glRotatef(rightHipAngle, 1.0f, 0.0f, 0.0f);
     }
@@ -149,6 +145,7 @@ void drawLeg(bool isLeft) {
     glColor3f(1.0f, 1.0f, 1.0f);
 
     gluCylinder(gluNewQuadric(), 0.2f, 0.2f, 0.7f, 20, 20);
+
     glTranslatef(0.0f, 0.0f, 0.7f);
 
     // Lower leg with knee rotation and constraints to mimic real leg movement
@@ -338,6 +335,7 @@ void specialKeyboard(int key, int x, int y) {
 }
 
 // Implement logic for cannon spinning and bot stepping animation
+/*
 void animation(int value) {
     // Update the cannon angle if spinning is active
     if (cannonSpinning) {
@@ -360,6 +358,8 @@ void animation(int value) {
     // Animation speed
     glutTimerFunc(16, animation, 0);
 }
+
+*/
 
 /*
 int main(int argc, char** argv) {
