@@ -164,14 +164,15 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="Robot.cpp" />
+    <ClCompile Include="..\src\main.cpp" />
+    <ClCompile Include="..\src\Robot.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="ground_texture.bmp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Robot.h" />
+    <ClInclude Include="..\src\Robot.h" />
+    <ClInclude Include="..\src\surfaceModeller.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

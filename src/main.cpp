@@ -513,7 +513,7 @@ GLuint loadGroundBMP(const char* filePath) {
 void importMesh() {
 
     //Open file
-    errno_t err = fopen_s(&cannonFile, "meshes/cannon_mesh_export.obj", "r");
+    errno_t err = fopen_s(&cannonFile, "assets/meshes/cannon_mesh_export.obj", "r");
     if (err != 0 || !cannonFile) {
         fprintf(stderr, "Error reading cannon file\n");
         return;
@@ -626,8 +626,8 @@ int main(int argc, char** argv) {
     }
 
     //Loading textures
-    groundTexture = loadGroundBMP("textures/snow.bmp");
-    cannonTexture = loadGroundBMP("textures/cannon.bmp");
+    groundTexture = loadGroundBMP("assets/textures/snow.bmp");
+    cannonTexture = loadGroundBMP("assets/textures/cannon.bmp");
 
 
     //Creating the window

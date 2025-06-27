@@ -24,3 +24,7 @@ Release/
 *.tlog
 *.lastbuildstate
 *.vcxproj.user
+
+# Ignore local dependencies
+Dependencies/
+
