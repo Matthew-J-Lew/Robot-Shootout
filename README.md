@@ -15,6 +15,19 @@
 
 ---
 
+## 📸 Screenshots
+
+<p align="center">
+  <img src="assets/screenshots/front_view.png" alt="Robot Front View" width="30%" style="margin-right: 10px;" />
+  <img src="assets/screenshots/side_view.png" alt="Robot Side View" width="30%" />
+</p>
+
+<p align="center">
+  <em>Front and side views of the robot model.</em>
+</p>
+
+---
+
 ## 🧰 Tech Stack
 
 - **Language**: C++
