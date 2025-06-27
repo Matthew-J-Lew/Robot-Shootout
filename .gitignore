@@ -10,6 +10,8 @@ Debug/
 Release/
 *.exe
 *.obj
+# Allow mesh files
+!assets/meshes/*.obj
 *.pdb
 *.ilk
 *.log
