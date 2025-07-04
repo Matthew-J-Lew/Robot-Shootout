@@ -65,7 +65,6 @@
 
 - Ensure the working directory is set correctly so the game can locate textures in the `assets/` folder.
 - `.obj` mesh files and `.bmp` textures must be present for the visuals to load properly.
-- To avoid pushing local build files, verify your `.gitignore` is configured correctly.
 
 ---
 
@@ -73,10 +72,12 @@
 
 - [FreeGLUT](http://freeglut.sourceforge.net/)
 - [GLEW](http://glew.sourceforge.net/)
-- Basic walking animation concept adapted from previous course assignments.
 
 ---
 
-## 📜 License
+## 🪪 License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+MIT License © [Matthew Lew](https://github.com/Matthew-J-Lew)
+
+[![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white)](https://github.com/Matthew-J-Lew)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/matt-j-lew/)
